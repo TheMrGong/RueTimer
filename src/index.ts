@@ -21,6 +21,7 @@ const REMINDERS_EVERY = [// 10 seconds, 1 minute, 5 minutes, 30 minutes, every h
 dotenv.config()
 
 type ScheduledTimer = {
+    start: number,
     end: number,
     scheduler: Discord.Snowflake,
     lastReminder: number,
@@ -57,7 +58,7 @@ client.on("message", (msg) => {
                         console.error(`Couldn't reply error with timer command`)
                         console.error(e)
                     })
-                    console.error(`Unexpected error running timer for ${msg.author} with args '${args.join(" ")}'`)
+                    console.error(`Unexpected error running timer for ${msg.author.tag} with args '${args.join(" ")}'`)
                     console.error(e)
                 })
             break
@@ -120,15 +121,18 @@ async function timerCommand(msg: Discord.Message, guild: Discord.Guild, args: st
         const timer = guildTimers[msg.channel.id]
         const name = await getTimerScheduler(guild, msg.author, timer)
         prefix = `**-** Cancelled ${name} in this channel - it had ${formatTimerRemaining(timer)} remaining\n`
+        console.info(`${msg.author.tag} cancelled timer in ${formatChannelGuild(msg.channel)}`)
         delete guildTimers[msg.channel.id]
     }
 
     await replyTo(msg, `${prefix}Started timer for ${prettyMs(time)}`)
     guildTimers[msg.channel.id] = {
+        start: Date.now(),
         end: Date.now() + time,
         scheduler: msg.author.id,
         lastReminder: Date.now()
     }
+    console.info(`${msg.author.tag} started a timer for ${prettyMs(time)} in ${formatChannelGuild(msg.channel)}`)
 }
 
 async function getTimerScheduler(guild: Discord.Guild, asking: Discord.User, timer: ScheduledTimer, capitilize = false): Promise<string> {
@@ -194,15 +198,17 @@ async function handleTimerTick() {
             }
             let schedulerTag: string | undefined
             let scheduledName: string | undefined
+            let scheduledTag: string | undefined
             if (!timer.invalidScheduler) try {
                 const user = await client.users.fetch(timer.scheduler)
                 schedulerTag = user?.toString()
 
                 if (user) {
                     scheduledName = (await guild.members.fetch(user))?.displayName || user.username
+                    scheduledTag = user.tag
                 }
             } catch (e) {
-                console.warn(`Failed to get scheduler for timer in channel '${channel.name}' guild '${guild.name}' with id '${timer.scheduler}': ` + e)
+                console.warn(`Failed to get scheduler for timer in ${formatChannelGuild(channel)} with id '${timer.scheduler}': ` + e)
                 timer.invalidScheduler = true
             }
             if (!schedulerTag) {
@@ -211,9 +217,12 @@ async function handleTimerTick() {
             if (!scheduledName) {
                 scheduledName = `Unknown user`
             }
+            if (!scheduledTag) {
+                scheduledTag = `Unknown tag`
+            }
 
             const failedSend = (e: any) => {
-                console.warn(`Failed to send a message in channel '${channel?.name}'`)
+                console.warn(`Failed to send a message in ${formatChannelGuild(channel)}`)
                 console.warn(e)
                 return undefined
             }
@@ -221,6 +230,7 @@ async function handleTimerTick() {
             if (Date.now() >= timer.end) {
                 await tryRemoveTimerReminder(channel, timer)
                 await channel.send(`${schedulerTag}, your timer in this channel has ended!`).catch(failedSend)
+                console.info(`${scheduledTag}'s timer for ${prettyMs(timer.end - timer.start)} ended in ${formatChannelGuild(channel)}`)
                 delete guildTimers[channelId]
                 if (Object.keys(guildTimers).length === 0) {
                     delete scheduled[guildId]
@@ -259,7 +269,7 @@ async function tryRemoveTimerReminder(channel: Discord.TextChannel, timer: Sched
             })
         }
     } catch (e) {
-        console.warn(`Unable to delete last reminder for guild '${channel.guild.id}' channel ${channel.id} message ${timer.lastReminderId}: ` + e)
+        console.warn(`Unable to delete last reminder for ${formatChannelGuild(channel)} message ${timer.lastReminderId}: ` + e)
     }
 }
 
@@ -277,6 +287,17 @@ function doTimerTicking() {
 function formatTimerRemaining(timer: ScheduledTimer) {
     const timeRemaining = Math.round((timer.end - Date.now()) / 1000) * 1000
     return prettyMs(Math.max(0, timeRemaining))
+}
+
+function formatChannelGuild(channel?: Discord.Channel) {
+    let channelName = channel?.toString()
+    let guildName = "unknown"
+
+    if (channel instanceof Discord.TextChannel) {
+        channelName = channel.name
+        guildName = channel.guild.name
+    }
+    return `channel '${channelName}' guild '${guildName}'`
 }
 
 async function start() {
