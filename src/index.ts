@@ -291,8 +291,8 @@ function doTimerTicking() {
 }
 
 function formatTimerRemaining(timer: ScheduledTimer) {
-    const timeRemaining = Math.round((timer.end - Date.now()) / 1000) * 1000
-    return prettyMs(Math.max(0, timeRemaining))
+    const timeRemaining = Math.max(0, Math.round((timer.end - Date.now()) / 1000))
+    return timeRemaining + " second" + (timeRemaining === 1 ? "" : "s")
 }
 
 function formatChannelGuild(channel?: Discord.Channel) {
