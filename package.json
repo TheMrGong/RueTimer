@@ -5,7 +5,7 @@
   "main": "src/index.ts",
   "repository": "https://github.com/TheMrGong/RueTimer",
   "author": "TheMrGong",
-  "license": "none",
+  "license": "WTFPL",
   "dependencies": {
     "@types/chalk": "^2.2.0",
     "@types/node": "^14.14.10",
