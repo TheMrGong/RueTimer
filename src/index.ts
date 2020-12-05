@@ -24,6 +24,7 @@ type ScheduledTimer = {
     end: number,
     scheduler: Discord.Snowflake,
     lastReminder: number,
+    lastReminderId?: Discord.Snowflake,
     invalidScheduler?: boolean
 }
 
@@ -214,27 +215,51 @@ async function handleTimerTick() {
             const failedSend = (e: any) => {
                 console.warn(`Failed to send a message in channel '${channel?.name}'`)
                 console.warn(e)
+                return undefined
             }
 
             if (Date.now() >= timer.end) {
+                await tryRemoveTimerReminder(channel, timer)
                 await channel.send(`${schedulerTag}, your timer in this channel has ended!`).catch(failedSend)
                 delete guildTimers[channelId]
                 if (Object.keys(guildTimers).length === 0) {
-                    console.log(`removing all guild timers for ${guildId} no timers remain`)
                     delete scheduled[guildId]
                 }
             } else {
                 const secondsRemaining = Math.round((timer.end - Date.now()) / 1000)
-                const interval = REMINDERS_EVERY.find((interval) => {
-                    secondsRemaining % interval === 0 && interval >= secondsRemaining
-                }) || REMINDERS_EVERY[0]
+                const interval = REMINDERS_EVERY.find((interval) => secondsRemaining % interval === 0 && interval >= secondsRemaining)
+                    || REMINDERS_EVERY[0]
+
                 if (secondsRemaining && secondsRemaining % interval === 0 && Date.now() - timer.lastReminder > 1000) {
                     timer.lastReminder = Date.now()
-                    await channel.send(`\`${scheduledName}\`, your timer in this channel has ${formatTimerRemaining(timer)} remaining`)
+                    await tryRemoveTimerReminder(channel, timer)
+
+                    const reminder = await channel.send(`\`${scheduledName}\`, your timer in this channel has ${formatTimerRemaining(timer)} remaining`)
                         .catch(failedSend)
+                    timer.lastReminderId = reminder?.id
                 }
             }
         }
+    }
+}
+
+async function tryRemoveTimerReminder(channel: Discord.TextChannel, timer: ScheduledTimer) {
+    if (!timer.lastReminderId) {
+        return
+    }
+    try {
+        const clientMember = client.user && await channel.guild.members.fetch(client.user).catch(e => e + "")
+        if (!clientMember || typeof clientMember == "string") {
+            throw new Error(`Failed to get client member: ${clientMember}`)
+        }
+        const msg = await channel.messages.fetch(timer.lastReminderId)
+        if (msg && channel.permissionsFor(clientMember)?.has("MANAGE_MESSAGES")) {
+            await msg.delete().catch((e) => {
+                console.warn(`Failed to remove previous reminder: ` + e)
+            })
+        }
+    } catch (e) {
+        console.warn(`Unable to delete last reminder for guild '${channel.guild.id}' channel ${channel.id} message ${timer.lastReminderId}: ` + e)
     }
 }
 
