@@ -125,11 +125,18 @@ async function timerCommand(msg: Discord.Message, guild: Discord.Guild, args: st
     }
 
     await replyTo(msg, `${prefix}Started timer for ${prettyMs(time)}`)
+
+    const reminder = await msg.channel.send(`\`\`\`${timeInput} second${time === 1 ? "" : "s"}\`\`\``)
+        .catch((e) => {
+            console.warn(`Failed to create reminder for initial message: ` + e)
+            return undefined
+        })
     guildTimers[msg.channel.id] = {
         start: Date.now(),
         end: Date.now() + time,
         scheduler: msg.author.id,
-        lastReminder: Date.now()
+        lastReminder: Date.now(),
+        lastReminderId: reminder?.id
     }
     console.info(`${msg.author.tag} started a timer for ${prettyMs(time)} in ${formatChannelGuild(msg.channel)}`)
 }
