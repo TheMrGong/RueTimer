@@ -233,9 +233,11 @@ async function handleTimerTick() {
                 return undefined
             }
 
+            //await tryRemoveTimerReminder(channel, timer)
             if (Date.now() >= timer.end) {
-                await tryRemoveTimerReminder(channel, timer)
-                await channel.send(`${schedulerTag}, your timer in this channel has ended!`).catch(failedSend)
+
+                //await channel.send(`${schedulerTag}, your timer in this channel has ended!`).catch(failedSend)
+                await channel.send(`${schedulerTag}\n\`\`\`TIME!\`\`\``).catch(failedSend)
                 console.info(`${scheduledTag}'s timer for ${prettyMs(timer.end - timer.start)} ended in ${formatChannelGuild(channel)}`)
                 delete guildTimers[channelId]
                 if (Object.keys(guildTimers).length === 0) {
@@ -248,9 +250,10 @@ async function handleTimerTick() {
 
                 if (secondsRemaining && secondsRemaining % interval === 0 && Date.now() - timer.lastReminder > 1000) {
                     timer.lastReminder = Date.now()
-                    await tryRemoveTimerReminder(channel, timer)
 
-                    const reminder = await channel.send(`\`${scheduledName}\`, your timer in this channel has ${formatTimerRemaining(timer)} remaining`)
+                    // const reminder = await channel.send(`\`${scheduledName}\`, your timer in this channel has ${formatTimerRemaining(timer)} remaining`)
+                    //     .catch(failedSend)
+                    const reminder = await channel.send(`\`\`\`${formatTimerRemaining(timer)}\`\`\``)
                         .catch(failedSend)
                     timer.lastReminderId = reminder?.id
                 }
