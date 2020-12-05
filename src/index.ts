@@ -15,7 +15,6 @@ const REMINDERS_EVERY = [// 10 seconds, 1 minute, 5 minutes, 30 minutes, every h
     60,
     30,
     10,
-    5
 ]
 
 dotenv.config()
