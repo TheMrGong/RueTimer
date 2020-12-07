@@ -61,6 +61,14 @@ client.on("message", (msg) => {
                     console.error(e)
                 })
             break
+        case "flip":
+            const result = Math.random() >= 0.5 ? "heads" : "tails"
+            replyTo(msg, `\`\`\`${result}\`\`\``).catch((e) => {
+                console.error(`Couldn't reply error with flip command`)
+                console.error(e)
+            })
+            console.info(`${msg.author.tag} did a flip resulting in ${result} in ${formatChannelGuild(channel)}`)
+            break
         default:
             break
     }
